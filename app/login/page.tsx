@@ -3,11 +3,12 @@ import { HeartHandshake, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { login, signup } from './actions';
 
 type LoginPageProps = {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; next?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
+  const next = typeof params.next === 'string' && params.next.startsWith('/') && !params.next.startsWith('//') ? params.next : '/dashboard';
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] px-5 py-10 text-[#2D3748] sm:py-14">
@@ -37,6 +38,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {params.success ? <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{params.success}</div> : null}
 
           <form className="mt-7 space-y-4">
+            <input type="hidden" name="next" value={next} />
             <label className="block">
               <span className="mb-1 block text-sm font-medium">Nome completo <span className="font-normal text-[#A0AEC0]">(para criar conta)</span></span>
               <input id="fullName" name="fullName" type="text" placeholder="Seu nome" className="w-full rounded-xl border border-[#E2E8F0] px-4 py-3 outline-none transition focus:border-[#319795] focus:ring-2 focus:ring-[#E6FFFA]" />
