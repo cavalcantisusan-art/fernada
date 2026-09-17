@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
-import './globals.css'; // Global styles
+import './globals.css';
+import GlobalBookingCta from '@/components/GlobalBookingCta';
 
 export const metadata: Metadata = {
   title: 'Fernanda Rabelo | Psicologia Online',
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="pt-BR">
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <GlobalBookingCta />
+      </body>
     </html>
   );
 }
