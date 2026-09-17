@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { addDays, format, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, Clock, CreditCard, ShieldCheck } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const FALLBACK_TIMES = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
@@ -17,6 +18,7 @@ export default function SchedulePage() {
   const [loadingTimes, setLoadingTimes] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [availabilityNotice, setAvailabilityNotice] = useState('');
   const [patientName, setPatientName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -33,17 +35,32 @@ export default function SchedulePage() {
     setSelectedDate(date);
     setSelectedTime(null);
     setError('');
+    setAvailabilityNotice('');
     setLoadingTimes(true);
 
     const value = format(date, 'yyyy-MM-dd');
+
     try {
-      const response = await fetch(`/api/appointments?date=${value}`, { cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível consultar os horários.');
-      setAvailableTimes(Array.isArray(data.availableTimes) ? data.availableTimes : FALLBACK_TIMES);
+      const supabase = createClient();
+      const { data, error: rpcError } = await supabase.rpc('get_available_times', {
+        p_date: value,
+      });
+
+      if (rpcError) throw rpcError;
+
+      const times = Array.isArray(data)
+        ? data
+            .map((row: { appointment_time?: string } | string) =>
+              typeof row === 'string' ? row : row.appointment_time,
+            )
+            .filter((time): time is string => Boolean(time))
+        : FALLBACK_TIMES;
+
+      setAvailableTimes(times);
     } catch (err) {
+      console.error('Supabase availability lookup failed:', err);
       setAvailableTimes(FALLBACK_TIMES);
-      setError(err instanceof Error ? err.message : 'Não foi possível consultar os horários.');
+      setAvailabilityNotice('Exibindo a grade padrão de horários. A disponibilidade final será validada antes do pagamento.');
     } finally {
       setLoadingTimes(false);
     }
@@ -74,6 +91,12 @@ export default function SchedulePage() {
           appointmentTime: selectedTime,
         }),
       });
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('O pagamento ainda não está disponível nesta pré-visualização. Publique o app com as chaves da Stripe configuradas para testar o checkout.');
+      }
+
       const data = await response.json();
       if (!response.ok || !data.url) throw new Error(data.error || 'Não foi possível iniciar o pagamento.');
       window.location.href = data.url;
@@ -100,6 +123,7 @@ export default function SchedulePage() {
         </div>
 
         {error && <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {availabilityNotice && <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{availabilityNotice}</div>}
 
         {step === 'slot' && (
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
