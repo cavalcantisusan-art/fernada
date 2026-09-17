@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
+import { createClient as createServerSupabase } from '@/lib/supabase/server';
 
 const AVAILABLE_TIMES = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 const CONSULTATION_PRICE_CENTS = 18000;
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
   const phone = String(body.phone ?? '').trim();
   const appointmentDate = String(body.appointmentDate ?? '').trim();
   const appointmentTime = String(body.appointmentTime ?? '').trim();
+  const consentAccepted = body.consentAccepted === true;
 
   if (patientName.length < 3 || patientName.length > 120) {
     return NextResponse.json({ error: 'Informe o nome completo.' }, { status: 400 });
@@ -63,6 +65,18 @@ export async function POST(request: NextRequest) {
   if (!AVAILABLE_TIMES.includes(appointmentTime)) {
     return NextResponse.json({ error: 'Horário inválido.' }, { status: 400 });
   }
+  if (!consentAccepted) {
+    return NextResponse.json({ error: 'É necessário aceitar os termos e o consentimento para teleatendimento.' }, { status: 400 });
+  }
+
+  let userId: string | null = null;
+  try {
+    const authClient = await createServerSupabase();
+    const { data } = await authClient.auth.getClaims();
+    userId = typeof data?.claims?.sub === 'string' ? data.claims.sub : null;
+  } catch {
+    userId = null;
+  }
 
   const insertResponse = await fetch(`${supabase.url}/rest/v1/appointments`, {
     method: 'POST',
@@ -78,6 +92,8 @@ export async function POST(request: NextRequest) {
       appointment_time: appointmentTime,
       status: 'pending',
       payment_status: 'pending',
+      user_id: userId,
+      consent_accepted_at: new Date().toISOString(),
     }),
   });
 
@@ -118,6 +134,7 @@ export async function POST(request: NextRequest) {
         appointment_id: appointment.id,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime,
+        user_id: userId ?? '',
       },
     });
 
