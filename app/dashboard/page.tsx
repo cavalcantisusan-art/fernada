@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarDays, CreditCard, LogOut, ShieldCheck, Stethoscope, Video } from 'lucide-react';
+import { CalendarDays, CalendarPlus, CreditCard, LogOut, ShieldCheck, Stethoscope, UserRound, Video } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
 type Appointment = {
@@ -48,6 +48,7 @@ export default async function DashboardPage() {
                 <Stethoscope className="h-4 w-4" /> Painel profissional
               </Link>
             )}
+            <Link href="/dashboard/perfil" className="inline-flex items-center gap-2 rounded-xl border border-[#DDE8E7] px-4 py-3 text-sm font-semibold hover:bg-[#F7FAFC]"><UserRound className="h-4 w-4" /> Meu perfil</Link>
             <Link href="/agendar" className="rounded-xl bg-[#319795] px-4 py-3 text-sm font-semibold text-white hover:bg-[#2C7A7B]">Nova consulta</Link>
             <form action="/auth/signout" method="post">
               <button className="inline-flex items-center gap-2 rounded-xl border border-[#DDE8E7] px-4 py-3 text-sm font-semibold hover:bg-[#F7FAFC]">
@@ -121,11 +122,14 @@ function AppointmentCard({ item }: { item: Appointment }) {
         <PaymentBadge status={item.payment_status} />
       </div>
       <div className="mt-5 rounded-2xl bg-[#F7FAFC] p-4 text-sm"><p><strong>Status:</strong> {statusLabel(item.status)}</p><p className="mt-1 text-[#718096]">Videochamada online com Fernanda Rabelo.</p></div>
-      {canEnter ? (
-        <Link href={`/sala/${item.room_token}`} className="mt-5 flex h-12 items-center justify-center gap-2 rounded-xl bg-[#1F2937] font-semibold text-white hover:bg-black"><Video className="h-5 w-5" /> Acessar sala</Link>
-      ) : (
-        <div className="mt-5 rounded-xl border border-[#E2E8F0] px-4 py-3 text-center text-sm text-[#718096]">A sala será liberada após a confirmação do pagamento.</div>
-      )}
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        {canEnter ? (
+          <Link href={`/sala/${item.room_token}`} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#1F2937] font-semibold text-white hover:bg-black"><Video className="h-5 w-5" /> Acessar sala</Link>
+        ) : (
+          <div className="flex min-h-12 items-center justify-center rounded-xl border border-[#E2E8F0] px-4 py-3 text-center text-sm text-[#718096]">Sala após confirmação</div>
+        )}
+        <a href={`/api/calendar/${item.id}`} className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#DDE8E7] font-semibold hover:bg-[#F7FAFC]"><CalendarPlus className="h-5 w-5 text-[#319795]" /> Adicionar à agenda</a>
+      </div>
     </article>
   );
 }
