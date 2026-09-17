@@ -18,7 +18,9 @@ import {
   MicOff,
   VideoOff,
   PhoneOff,
-  Mail
+  Mail,
+  MessageCircle,
+  Phone
 } from 'lucide-react';
 import { format, addDays, startOfToday, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -163,7 +165,7 @@ export default function App() {
                       </div>
                       <div>
                         <p className="font-semibold text-[#2D3748]">Fernanda Rabelo</p>
-                        <p className="text-sm text-[#718096]">CRP 00/00000</p>
+                        <p className="text-sm text-[#718096]">CRP 02/15302</p>
                       </div>
                     </div>
                   </div>
@@ -172,75 +174,112 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* SCHEDULE VIEW */}
+          {/* ABOUT SECTION */}
+          {currentView === 'home' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-32 space-y-24"
+            >
+              <section id="sobre" className="scroll-mt-32 grid md:grid-cols-2 gap-16 items-center">
+                <div className="order-2 md:order-1 relative aspect-square rounded-3xl overflow-hidden shadow-xl border-4 border-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1887&auto=format&fit=crop" 
+                    alt="Fernanda Rabelo" 
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                <div className="order-1 md:order-2 space-y-6">
+                  <h3 className="text-3xl font-bold text-[#1A202C]">Sobre Fernanda</h3>
+                  <div className="space-y-4 text-[#4A5568] leading-relaxed">
+                    <p>
+                      <strong>Psicóloga formada pela FAFIRE, em 2010.</strong> Com uma trajetória profunda em saúde mental, arteterapia e redução de danos.
+                    </p>
+                    <ul className="space-y-3 list-disc pl-5">
+                      <li>Arteterapeuta — ARTE-PE 107/0516.</li>
+                      <li>Mestra em Psicologia Social pela UFS.</li>
+                      <li>Especialista em Psicologia Junguiana com enfoque na prática clínica pela Faculdade IDE.</li>
+                      <li>Facilitadora de SoulCollage.</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              <section id="abordagem" className="scroll-mt-32 bg-white rounded-3xl p-10 md:p-16 shadow-sm border border-[#E2E8F0]">
+                <h3 className="text-3xl font-bold text-[#1A202C] text-center mb-12">Áreas de Atuação</h3>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {['Psicologia Analítica', 'Arteterapia', 'Saúde Mental', 'Redução de Danos', 'Psicoterapia Assistida com Cetamina', 'Psicologia Financeira'].map((area, idx) => (
+                    <div key={idx} className="bg-[#F7FAFC] rounded-2xl p-6 border border-[#E2E8F0] flex items-center justify-center text-center hover:border-[#319795] hover:shadow-md transition-all">
+                      <span className="font-medium text-[#2D3748]">{area}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section id="contato" className="scroll-mt-32 bg-[#319795] text-white rounded-3xl p-10 md:p-16 text-center space-y-8">
+                <h3 className="text-3xl font-bold">Pronto para dar o primeiro passo?</h3>
+                <p className="text-[#E6FFFA] max-w-2xl mx-auto text-lg">
+                  Neste momento, os agendamentos online estão sendo realizados exclusivamente via WhatsApp para um atendimento mais personalizado.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+                  <a 
+                    href="https://wa.me/5581991930007" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="h-14 px-8 rounded-full bg-white text-[#319795] font-semibold text-lg hover:bg-[#E6FFFA] transition-colors flex items-center gap-2"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Chamar no WhatsApp
+                  </a>
+                  <a 
+                    href="tel:+5581991930007" 
+                    className="h-14 px-8 rounded-full bg-[#2C7A7B] text-white font-semibold text-lg hover:bg-[#285E61] transition-colors flex items-center gap-2"
+                  >
+                    <Phone className="w-5 h-5" />
+                    Ligar
+                  </a>
+                </div>
+              </section>
+            </motion.div>
+          )}
+
+          {/* SCHEDULE VIEW (Modified to inform WhatsApp dependency) */}
           {currentView === 'schedule' && (
             <motion.div
               key="schedule"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="max-w-3xl mx-auto"
+              className="max-w-xl mx-auto text-center py-12"
             >
               <button 
                 onClick={() => goBack('home')}
-                className="flex items-center gap-2 text-[#718096] hover:text-[#2D3748] transition-colors mb-8"
+                className="flex items-center gap-2 text-[#718096] hover:text-[#2D3748] transition-colors mb-8 mx-auto"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Voltar
               </button>
               
               <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#E2E8F0]">
-                <h3 className="text-2xl font-bold text-[#2D3748] mb-2">Escolha o melhor horário</h3>
-                <p className="text-[#718096] mb-8">Selecione uma data e horário para a sua sessão online (50 minutos).</p>
-                
-                <div className="space-y-8">
-                  <div>
-                    <h4 className="text-sm font-semibold text-[#4A5568] uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4" /> Datas Disponíveis
-                    </h4>
-                    <div className="flex gap-3 overflow-x-auto pb-4 snap-x hide-scrollbar">
-                      {availableDates.map((date, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setSelectedDate(date)}
-                          className={`flex-shrink-0 snap-start w-24 h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all
-                            ${selectedDate && isSameDay(selectedDate, date) 
-                              ? 'border-[#319795] bg-[#E6FFFA] text-[#319795]' 
-                              : 'border-[#E2E8F0] hover:border-[#CBD5E0] text-[#4A5568]'}`}
-                        >
-                          <span className="text-sm font-medium">{format(date, 'EEE', { locale: ptBR }).toUpperCase()}</span>
-                          <span className="text-2xl font-bold">{format(date, 'dd')}</span>
-                          <span className="text-xs">{format(date, 'MMM', { locale: ptBR })}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {selectedDate && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                    >
-                      <h4 className="text-sm font-semibold text-[#4A5568] uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Clock className="w-4 h-4" /> Horários
-                      </h4>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                        {availableTimes.map((time) => (
-                          <button
-                            key={time}
-                            onClick={() => handleTimeSelect(selectedDate, time)}
-                            className={`py-3 rounded-xl border-2 font-medium transition-all
-                              ${selectedTime === time 
-                                ? 'border-[#319795] bg-[#319795] text-white' 
-                                : 'border-[#E2E8F0] hover:border-[#319795] text-[#4A5568] hover:text-[#319795]'}`}
-                          >
-                            {time}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
+                <div className="w-16 h-16 bg-[#E6FFFA] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <MessageCircle className="w-8 h-8 text-[#319795]" />
                 </div>
+                <h3 className="text-2xl font-bold text-[#2D3748] mb-4">Agendamento via WhatsApp</h3>
+                <p className="text-[#718096] mb-8">
+                  No momento, a plataforma de reservas automáticas está em configuração (banco de dados pendente). Para agendar a sua consulta com a psicóloga Fernanda Rabelo, por favor, entre em contato diretamente pelo WhatsApp.
+                </p>
+                
+                <a 
+                  href="https://wa.me/5581991930007" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full h-14 rounded-xl bg-[#319795] text-white font-medium text-lg shadow-[0_4px_14px_0_rgba(49,151,149,0.39)] hover:bg-[#2C7A7B] transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  Ir para o WhatsApp
+                </a>
               </div>
             </motion.div>
           )}
