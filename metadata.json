@@ -1,0 +1,6 @@
+{
+  "name": "Fernanda Rabelo | Psicologia Online",
+  "description": "Um espaço de acolhimento e escuta para cuidar da sua saúde emocional. Agende sua consulta online.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
