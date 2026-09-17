@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import GlobalBookingCta from '@/components/GlobalBookingCta';
+import PublicSiteEnhancements from '@/components/PublicSiteEnhancements';
 
 export const metadata: Metadata = {
   title: 'Fernanda Rabelo | Psicologia Online',
@@ -22,6 +23,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
     <html lang="pt-BR">
       <body suppressHydrationWarning>
         {children}
+        <PublicSiteEnhancements />
         <GlobalBookingCta />
       </body>
     </html>
