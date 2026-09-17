@@ -4,6 +4,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CalendarCheck2, CreditCard, ShieldCheck, UserRound, Video } from 'lucide-react';
 
+const faqs = [
+  ['Como funciona a consulta online?', 'Você escolhe um horário, finaliza o pagamento e acompanha tudo pela Área da Paciente. A sala virtual é liberada próximo do horário da sessão.'],
+  ['Quanto dura a sessão?', 'Cada sessão individual tem duração prevista de 50 minutos.'],
+  ['Como é feito o pagamento?', 'O pagamento é processado pela Stripe. Os dados do cartão não são armazenados neste site.'],
+  ['Quando o horário fica confirmado?', 'A consulta é considerada confirmada depois que o pagamento é aprovado e o status é atualizado no sistema.'],
+  ['Posso acessar pelo celular?', 'Sim. O site é responsivo. Para a videochamada, use um navegador atualizado e permita acesso à câmera e ao microfone.'],
+  ['O site serve para emergências?', 'Não. A plataforma é destinada a agendamento e atendimento programado, não a situações de emergência.'],
+];
+
 export default function PublicSiteEnhancements() {
   const pathname = usePathname();
   if (pathname !== '/') return null;
@@ -40,9 +49,29 @@ export default function PublicSiteEnhancements() {
             <div className="rounded-3xl bg-[#1F2937] p-7 text-white">
               <UserRound className="h-7 w-7 text-[#81E6D9]" />
               <h3 className="mt-4 text-xl font-bold">Sua consulta em um só lugar</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/65">Na Área da Paciente você acompanha consultas futuras, status do pagamento e o acesso à sala virtual.</p>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">Na Área da Paciente você acompanha consultas futuras, status do pagamento, adiciona o compromisso à agenda e acessa a sala virtual.</p>
               <div className="mt-5 flex flex-wrap gap-3"><Link href="/login" className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#1F2937]">Entrar</Link><Link href="/agendar" className="rounded-xl bg-[#319795] px-4 py-2.5 text-sm font-semibold text-white">Agendar</Link></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-[#E2E8F0] bg-white px-5 py-16 text-[#2D3748] sm:py-20">
+        <div className="mx-auto max-w-4xl">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#319795]">Dúvidas frequentes</p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Antes de agendar</h2>
+          </div>
+          <div className="mt-10 grid gap-4 md:grid-cols-2">
+            {faqs.map(([question, answer]) => (
+              <article key={question} className="rounded-2xl border border-[#E2E8F0] bg-[#FDFBF7] p-6">
+                <h3 className="font-bold">{question}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#718096]">{answer}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <Link href="/agendar" className="inline-flex rounded-full bg-[#319795] px-6 py-3 font-semibold text-white hover:bg-[#2C7A7B]">Ver horários disponíveis</Link>
           </div>
         </div>
       </section>
