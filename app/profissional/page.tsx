@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { CalendarClock, CreditCard, LogOut, UserRoundCheck, Video } from 'lucide-react';
+import { CalendarClock, CreditCard, LogOut, Mail, MessageCircle, UserRoundCheck, Video } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { requireProfessional } from '@/lib/professional';
@@ -64,7 +64,7 @@ export default async function ProfessionalPage() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#81E6D9]">Painel profissional</p>
             <h1 className="mt-2 text-3xl font-bold">Agenda da Fernanda</h1>
-            <p className="mt-2 text-white/65">Consultas, pagamentos e disponibilidade em um só lugar.</p>
+            <p className="mt-2 text-white/65">Consultas, pagamentos, contato com pacientes e disponibilidade em um só lugar.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold hover:bg-white/15">Área da paciente</Link>
@@ -126,6 +126,12 @@ export default async function ProfessionalPage() {
                     </div>
                     <PaymentBadge status={item.payment_status} />
                   </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a href={`mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent('Consulta online com Fernanda Rabelo')}`} className="inline-flex items-center gap-2 rounded-lg border border-[#E2E8F0] px-3 py-2 text-xs font-semibold hover:bg-[#F7FAFC]"><Mail className="h-4 w-4 text-[#319795]" /> E-mail</a>
+                    <a href={`https://wa.me/${normalizePhone(item.phone)}?text=${encodeURIComponent(`Olá, ${item.patient_name}. Estou entrando em contato sobre sua consulta de ${formatDate(item.appointment_date)} às ${item.appointment_time.slice(0, 5)}.`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-[#E2E8F0] px-3 py-2 text-xs font-semibold hover:bg-[#F7FAFC]"><MessageCircle className="h-4 w-4 text-[#319795]" /> WhatsApp</a>
+                  </div>
+
                   <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
                     <div className="rounded-xl bg-[#F7FAFC] px-4 py-3 text-sm"><strong>Status:</strong> {statusLabel(item.status)}</div>
                     <AppointmentActions id={item.id} status={item.status} />
@@ -152,3 +158,4 @@ function PaymentBadge({ status }: { status: string }) {
 }
 function statusLabel(status: string) { return status === 'confirmed' ? 'Confirmada' : status === 'cancelled' ? 'Cancelada' : 'Pendente'; }
 function formatDate(value: string) { const [y,m,d] = value.split('-'); return `${d}/${m}/${y}`; }
+function normalizePhone(value: string) { const digits = value.replace(/\D/g, ''); return digits.startsWith('55') ? digits : `55${digits}`; }
