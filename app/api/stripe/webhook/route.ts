@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
+import { sendAppointmentConfirmation } from '@/lib/notifications';
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
@@ -9,12 +10,12 @@ function getSupabaseConfig() {
   return { url, serviceRoleKey };
 }
 
-function supabaseHeaders(serviceRoleKey: string) {
+function supabaseHeaders(serviceRoleKey: string, prefer = 'return=minimal') {
   return {
     apikey: serviceRoleKey,
     Authorization: `Bearer ${serviceRoleKey}`,
     'Content-Type': 'application/json',
-    Prefer: 'return=minimal',
+    Prefer: prefer,
   };
 }
 
@@ -37,6 +38,32 @@ async function updateAppointment(
   }
 }
 
+async function getAppointment(appointmentId: string) {
+  const config = getSupabaseConfig();
+  if (!config) return null;
+
+  const response = await fetch(
+    `${config.url}/rest/v1/appointments?id=eq.${encodeURIComponent(appointmentId)}&select=patient_name,email,phone,appointment_date,appointment_time&limit=1`,
+    {
+      headers: {
+        apikey: config.serviceRoleKey,
+        Authorization: `Bearer ${config.serviceRoleKey}`,
+      },
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) return null;
+  const rows = (await response.json()) as Array<{
+    patient_name: string;
+    email: string;
+    phone: string;
+    appointment_date: string;
+    appointment_time: string;
+  }>;
+  return rows[0] ?? null;
+}
+
 function paymentIntentId(session: Stripe.Checkout.Session) {
   if (!session.payment_intent) return null;
   return typeof session.payment_intent === 'string'
@@ -54,6 +81,23 @@ async function confirmPaidSession(session: Stripe.Checkout.Session) {
     stripe_checkout_session_id: session.id,
     stripe_payment_intent_id: paymentIntentId(session),
   });
+
+  // Notifications are best-effort: a provider failure must never make Stripe retry
+  // an already-successful payment confirmation indefinitely.
+  try {
+    const appointment = await getAppointment(appointmentId);
+    if (appointment) {
+      await sendAppointmentConfirmation({
+        patientName: appointment.patient_name,
+        email: appointment.email,
+        phone: appointment.phone,
+        appointmentDate: appointment.appointment_date,
+        appointmentTime: appointment.appointment_time,
+      });
+    }
+  } catch (error) {
+    console.error('Appointment confirmation notification failed:', error);
+  }
 }
 
 export async function POST(request: NextRequest) {
