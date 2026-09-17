@@ -34,9 +34,9 @@ export default function PublicSiteEnhancements() {
           </div>
 
           <div className="mt-10 grid gap-4 rounded-3xl border border-[#DDE8E7] bg-white p-6 shadow-sm sm:grid-cols-3 sm:p-8">
-            <Info title="Valor" value="R$ 180,00" subtitle="por sessão" />
+            <Info title="Atendimento" value="Sob consulta" subtitle="combinado no primeiro contato" />
             <Info title="Duração" value="50 minutos" subtitle="atendimento individual" />
-            <Info title="Modalidade" value="Online" subtitle="videochamada" />
+            <Info title="Modalidade" value="Online" subtitle="videochamada segura" />
           </div>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2">
@@ -78,7 +78,13 @@ export default function PublicSiteEnhancements() {
 
       <footer className="border-t border-[#E2E8F0] bg-white px-5 py-10 text-[#4A5568]">
         <div className="mx-auto flex max-w-6xl flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-          <div><p className="font-bold text-[#2D3748]">Fernanda Rabelo</p><p className="mt-1 text-sm">Psicologia Online • CRP 02/15302</p><p className="mt-3 text-sm">rabelo.fernanda.psi@gmail.com</p></div>
+          <div>
+            <p className="font-bold text-[#2D3748]">Fernanda Rabelo</p>
+            <p className="mt-1 text-sm">Fernanda Caldas Rabelo de Oliveira • CRP 02/15302</p>
+            <p className="mt-2 text-sm text-[#718096]">
+              WhatsApp: <a href="https://wa.me/5581991930007" className="text-[#319795] underline">+55 81 99193-0007</a> • E-mail: rabelo.fernandac@gmail.com
+            </p>
+          </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium"><Link href="/agendar">Agendar</Link><Link href="/login">Minha área</Link><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link></div>
         </div>
       </footer>

@@ -2,33 +2,38 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { CalendarDays, CalendarPlus, CreditCard, LogOut, ShieldCheck, Stethoscope, UserRound, Video } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-
-type Appointment = {
-  id: string;
-  appointment_date: string;
-  appointment_time: string;
-  status: string;
-  payment_status: string;
-  room_token: string;
-};
+import { getLocalSession } from '@/lib/session';
+import { getAppointmentsForUser, type Appointment } from '@/lib/data-store';
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
+  const localSession = await getLocalSession();
+  let userId = localSession?.id || null;
+  let userName = localSession?.name || '';
+  let userRole = localSession?.role || 'patient';
+  let userEmail = localSession?.email || '';
 
-  if (!claims?.sub) redirect('/login');
+  if (!localSession) {
+    try {
+      const supabase = await createClient();
+      const { data } = await supabase.auth.getClaims();
+      const claims = data?.claims;
+      if (claims?.sub) {
+        userId = claims.sub;
+        const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', claims.sub).single();
+        userName = profile?.full_name || '';
+        userRole = profile?.role || 'patient';
+        userEmail = (claims.email as string) || '';
+      }
+    } catch {
+      // Supabase unavailable
+    }
+  }
 
-  const [{ data: profile }, { data: appointments }] = await Promise.all([
-    supabase.from('profiles').select('full_name, role').eq('id', claims.sub).single(),
-    supabase
-      .from('appointments')
-      .select('id, appointment_date, appointment_time, status, payment_status, room_token')
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true }),
-  ]);
+  if (!userId) {
+    redirect('/login');
+  }
 
-  const items = (appointments ?? []) as Appointment[];
+  const items = await getAppointmentsForUser(userEmail, userId);
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = items.filter((item) => item.appointment_date >= today && item.status !== 'cancelled');
   const history = items.filter((item) => item.appointment_date < today || item.status === 'cancelled');
@@ -39,11 +44,11 @@ export default async function DashboardPage() {
         <header className="flex flex-col gap-5 rounded-3xl border border-[#DDE8E7] bg-white p-6 shadow-sm sm:p-8 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#319795]">Área da Paciente</p>
-            <h1 className="mt-2 text-3xl font-bold">Olá{profile?.full_name ? `, ${profile.full_name}` : ''}.</h1>
+            <h1 className="mt-2 text-3xl font-bold">Olá{userName ? `, ${userName}` : ''}.</h1>
             <p className="mt-2 text-[#718096]">Acompanhe suas consultas, pagamentos e acesso à sala virtual.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            {profile?.role === 'professional' && (
+            {userRole === 'professional' && (
               <Link href="/profissional" className="inline-flex items-center gap-2 rounded-xl bg-[#1F2937] px-4 py-3 text-sm font-semibold text-white hover:bg-black">
                 <Stethoscope className="h-4 w-4" /> Painel profissional
               </Link>

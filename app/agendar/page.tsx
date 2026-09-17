@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { addDays, format, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Clock, CreditCard, ShieldCheck, UserRound, Video } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Calendar, Clock, CreditCard, ShieldCheck, UserRound, Video, CheckCircle2, MessageCircle } from 'lucide-react';
 
 const FALLBACK_TIMES = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
-type Step = 'slot' | 'details';
+type Step = 'slot' | 'details' | 'success';
 
 export default function SchedulePage() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('slot');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -24,12 +25,14 @@ export default function SchedulePage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [createdRoomToken, setCreatedRoomToken] = useState<string | null>(null);
 
+  // Available dates: Weekdays only, strictly excluding Thursdays (09h-19h indisponível)
   const availableDates = useMemo(() => {
     const today = startOfToday();
-    return Array.from({ length: 24 })
+    return Array.from({ length: 28 })
       .map((_, i) => addDays(today, i + 1))
-      .filter((date) => date.getDay() !== 0 && date.getDay() !== 6)
+      .filter((date) => date.getDay() !== 0 && date.getDay() !== 6 && date.getDay() !== 4)
       .slice(0, 16);
   }, []);
 
@@ -45,23 +48,18 @@ export default function SchedulePage() {
 
     const value = format(date, 'yyyy-MM-dd');
     try {
-      const supabase = createClient();
-      const { data, error: rpcError } = await supabase.rpc('get_available_times', { p_date: value });
-      if (rpcError) throw rpcError;
-
-      const times = Array.isArray(data)
-        ? data
-            .map((row: { appointment_time?: string } | string) =>
-              typeof row === 'string' ? row : row.appointment_time,
-            )
-            .filter((time): time is string => Boolean(time))
-        : FALLBACK_TIMES;
-
-      setAvailableTimes(times);
-    } catch (err) {
-      console.error('Supabase availability lookup failed:', err);
+      const res = await fetch(`/api/appointments?date=${value}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Erro ao carregar horários.');
+      }
+      const data = await res.json();
+      setAvailableTimes(data.availableTimes || []);
+      if (!data.availableTimes || data.availableTimes.length === 0) {
+        setAvailabilityNotice('Não há horários online disponíveis nesta data.');
+      }
+    } catch {
       setAvailableTimes(FALLBACK_TIMES);
-      setAvailabilityNotice('Exibindo a grade padrão. O horário será validado novamente antes do pagamento.');
     } finally {
       setLoadingTimes(false);
     }
@@ -73,7 +71,7 @@ export default function SchedulePage() {
     setError('');
   }
 
-  async function startCheckout(event: React.FormEvent) {
+  async function handleConfirmBooking(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedDate || !selectedTime) return;
     if (!consentAccepted) {
@@ -84,30 +82,32 @@ export default function SchedulePage() {
     setSubmitting(true);
     setError('');
 
+    const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+
     try {
-      const response = await fetch('/api/stripe/checkout', {
+      // 1. Try creating appointment directly
+      const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patientName,
           email,
           phone,
-          appointmentDate: format(selectedDate, 'yyyy-MM-dd'),
+          appointmentDate: formattedDate,
           appointmentTime: selectedTime,
-          consentAccepted,
         }),
       });
 
-      const contentType = response.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('O pagamento não está disponível nesta pré-visualização. Use a versão publicada do site para testar o checkout.');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Não foi possível confirmar o agendamento.');
       }
 
-      const data = await response.json();
-      if (!response.ok || !data.url) throw new Error(data.error || 'Não foi possível iniciar o pagamento.');
-      window.location.href = data.url;
+      setCreatedRoomToken(data.roomToken || 'consulta-online');
+      setStep('success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível iniciar o pagamento.');
+      setError(err instanceof Error ? err.message : 'Falha ao agendar. Tente novamente.');
+    } finally {
       setSubmitting(false);
     }
   }
@@ -116,7 +116,7 @@ export default function SchedulePage() {
     <main className="min-h-screen bg-[#FDFBF7] px-5 py-8 text-[#2D3748] sm:py-12">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <Link href="/" className="font-semibold text-[#319795] hover:text-[#2C7A7B]">← Fernanda Rabelo</Link>
+          <Link href="/" className="font-semibold text-[#319795] hover:text-[#2C7A7B]">← Fernanda Rabelo | Psicologia Online</Link>
           <div className="flex items-center gap-2 text-sm">
             <UserRound className="h-4 w-4 text-[#319795]" />
             <Link href="/login" className="font-medium hover:text-[#319795]">Entrar na minha área</Link>
@@ -126,28 +126,29 @@ export default function SchedulePage() {
         <header className="mb-10 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#319795]">Agendamento online</p>
-            <h1 className="mt-2 max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">Escolha seu horário e finalize com pagamento seguro</h1>
-            <p className="mt-4 max-w-2xl text-[#718096]">Sessão individual de 50 minutos por videochamada. O horário só é confirmado depois da aprovação do pagamento.</p>
+            <h1 className="mt-2 max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">Escolha seu horário e agende com Fernanda Rabelo</h1>
+            <p className="mt-4 max-w-2xl text-[#718096]">Sessão individual de 50 minutos por videochamada com escuta clínica qualificada e sigilo profissional.</p>
           </div>
           <div className="rounded-2xl border border-[#D7ECEA] bg-white px-6 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-[#718096]">Sessão online</p>
-            <p className="text-3xl font-bold text-[#319795]">R$ 180,00</p>
-            <p className="text-xs text-[#718096]">50 minutos • Stripe</p>
+            <p className="text-xs uppercase tracking-wide text-[#718096]">Atendimento online</p>
+            <p className="text-xl font-bold text-[#319795]">Sob consulta</p>
+            <p className="text-xs text-[#718096]">50 minutos • PIX ou Cartão</p>
           </div>
         </header>
 
-        <div className="mb-8 grid gap-3 sm:grid-cols-3">
-          {[
-            ['1', 'Escolha data e hora'],
-            ['2', 'Informe seus dados'],
-            ['3', 'Pague com segurança'],
-          ].map(([n, label]) => (
-            <div key={n} className="flex items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 text-sm">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6FFFA] font-bold text-[#319795]">{n}</span>
-              <span className="font-medium">{label}</span>
-            </div>
-          ))}
-        </div>
+        {step !== 'success' && (
+          <div className="mb-8 grid gap-3 sm:grid-cols-2">
+            {[
+              ['1', 'Escolha data e horário'],
+              ['2', 'Confirme seus dados e consulta'],
+            ].map(([n, label]) => (
+              <div key={n} className="flex items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 text-sm">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6FFFA] font-bold text-[#319795]">{n}</span>
+                <span className="font-medium">{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {error && <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {availabilityNotice && <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{availabilityNotice}</div>}
@@ -155,9 +156,12 @@ export default function SchedulePage() {
         {step === 'slot' && (
           <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             <section className="rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-8">
-              <div className="mb-5 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[#319795]" />
-                <h2 className="text-xl font-semibold">Escolha a data</h2>
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-[#319795]" />
+                  <h2 className="text-xl font-semibold">Escolha a data</h2>
+                </div>
+                <span className="text-xs text-[#718096]">Segunda a Sexta (exceto quintas)</span>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {availableDates.map((date) => {
@@ -212,16 +216,16 @@ export default function SchedulePage() {
 
         {step === 'details' && selectedDate && selectedTime && (
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-            <form onSubmit={startCheckout} className="rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-8">
+            <form onSubmit={handleConfirmBooking} className="rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-8">
               <div className="mb-6">
-                <h2 className="text-2xl font-semibold">Seus dados</h2>
-                <p className="mt-2 text-sm text-[#718096]">Se você entrar na sua conta antes de pagar, a consulta também aparecerá automaticamente na sua Área da Paciente.</p>
+                <h2 className="text-2xl font-semibold">Seus dados de contato</h2>
+                <p className="mt-2 text-sm text-[#718096]">Os dados informados serão utilizados para o envio das instruções de acesso e confirmação.</p>
               </div>
 
               <div className="space-y-4">
                 <Field label="Nome completo" value={patientName} setValue={setPatientName} required />
                 <Field label="E-mail" type="email" value={email} setValue={setEmail} required />
-                <Field label="WhatsApp/telefone" value={phone} setValue={setPhone} placeholder="(81) 99999-9999" required />
+                <Field label="WhatsApp / telefone" value={phone} setValue={setPhone} placeholder="(81) 99193-0007" required />
               </div>
 
               <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FBFB] p-4 text-sm leading-relaxed">
@@ -232,16 +236,22 @@ export default function SchedulePage() {
                   className="mt-1 h-4 w-4 accent-[#319795]"
                 />
                 <span>
-                  Li e aceito os <Link href="/termos" target="_blank" className="font-semibold text-[#319795] underline">Termos de Uso</Link>, a <Link href="/privacidade" target="_blank" className="font-semibold text-[#319795] underline">Política de Privacidade</Link> e concordo com o teleatendimento psicológico.
+                  Li e concordo com as orientações do teleatendimento psicológico da Psicóloga Fernanda Rabelo (CRP 02/15302), respeitando o sigilo profissional do CFP.
                 </span>
               </label>
 
-              <button disabled={submitting || !consentAccepted} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#319795] px-6 font-semibold text-white transition hover:bg-[#2C7A7B] disabled:cursor-not-allowed disabled:opacity-50">
-                <CreditCard className="h-5 w-5" />
-                {submitting ? 'Abrindo pagamento...' : 'Ir para pagamento seguro'}
+              <button
+                type="submit"
+                disabled={submitting || !consentAccepted}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#319795] px-6 font-semibold text-white transition hover:bg-[#2C7A7B] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-5 w-5" />
+                {submitting ? 'Confirmando agendamento...' : 'Confirmar agendamento'}
               </button>
 
-              <button type="button" onClick={() => setStep('slot')} className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-medium text-[#4A5568] hover:bg-[#F7FAFC]">Trocar data ou horário</button>
+              <button type="button" onClick={() => setStep('slot')} className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-medium text-[#4A5568] hover:bg-[#F7FAFC]">
+                Trocar data ou horário
+              </button>
             </form>
 
             <aside className="h-fit rounded-3xl border border-[#D7ECEA] bg-[#F5FFFD] p-6 lg:sticky lg:top-6">
@@ -249,11 +259,55 @@ export default function SchedulePage() {
               <div className="mt-5 space-y-4 text-sm">
                 <Summary icon={<Calendar className="h-4 w-4" />} label="Data" value={format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} />
                 <Summary icon={<Clock className="h-4 w-4" />} label="Horário" value={selectedTime} />
-                <Summary icon={<Video className="h-4 w-4" />} label="Modalidade" value="Videochamada • 50 minutos" />
-                <div className="border-t border-[#D7ECEA] pt-4"><p className="text-[#718096]">Total</p><p className="text-2xl font-bold text-[#319795]">R$ 180,00</p></div>
+                <Summary icon={<Video className="h-4 w-4" />} label="Modalidade" value="Videochamada online • 50 min" />
+                <div className="border-t border-[#D7ECEA] pt-4">
+                  <p className="text-[#718096]">Formas de pagamento</p>
+                  <p className="font-medium text-[#2D3748]">PIX ou Cartão (combinado previamente)</p>
+                </div>
               </div>
-              <div className="mt-6 flex gap-2 text-xs text-[#4A5568]"><ShieldCheck className="h-4 w-4 shrink-0 text-[#319795]" /><span>O pagamento acontece no ambiente seguro da Stripe. O site não recebe nem armazena o número do seu cartão.</span></div>
+              <div className="mt-6 flex gap-2 text-xs text-[#4A5568]">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-[#319795]" />
+                <span>Atendimento confidencial e em conformidade com as diretrizes do Conselho Regional de Psicologia de Pernambuco.</span>
+              </div>
             </aside>
+          </div>
+        )}
+
+        {step === 'success' && selectedDate && selectedTime && (
+          <div className="mx-auto max-w-2xl rounded-3xl border border-[#B2F5EA] bg-white p-8 text-center shadow-lg sm:p-12">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E6FFFA] text-[#319795]">
+              <CheckCircle2 className="h-10 w-10" />
+            </div>
+            <h2 className="mt-5 text-3xl font-bold">Consulta agendada com sucesso!</h2>
+            <p className="mt-3 text-[#4A5568]">
+              Parabéns, <strong>{patientName}</strong>. Seu horário foi reservado para o dia{' '}
+              <strong>{format(selectedDate, "dd/MM/yyyy")}</strong> às <strong>{selectedTime}</strong> com a Psicóloga Fernanda Rabelo.
+            </p>
+
+            <div className="mt-8 rounded-2xl border border-[#E2E8F0] bg-[#F7FAFC] p-5 text-left text-sm space-y-2">
+              <p><strong>Profissional:</strong> Fernanda Caldas Rabelo de Oliveira (CRP 02/15302)</p>
+              <p><strong>Modalidade:</strong> Videochamada online criptografada</p>
+              <p><strong>Contato profissional:</strong> rabelo.fernandac@gmail.com • (81) 99193-0007</p>
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              {createdRoomToken && (
+                <Link
+                  href={`/sala/${createdRoomToken}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#319795] px-6 py-3.5 font-semibold text-white transition hover:bg-[#2C7A7B]"
+                >
+                  <Video className="h-5 w-5" /> Entrar na sala de videochamada
+                </Link>
+              )}
+              <a
+                href={`https://wa.me/5581991930007?text=${encodeURIComponent(`Olá Fernanda, acabei de agendar uma consulta para ${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}. Meu nome é ${patientName}.`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#319795] bg-white px-6 py-3.5 font-semibold text-[#319795] transition hover:bg-[#E6FFFA]"
+              >
+                <MessageCircle className="h-5 w-5" /> Falar no WhatsApp
+              </a>
+            </div>
           </div>
         )}
       </div>

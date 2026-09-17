@@ -5,57 +5,37 @@ import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { requireProfessional } from '@/lib/professional';
 import { AppointmentActions, SlotToggle } from '@/components/ProfessionalControls';
+import { getAllAppointments, getBlockedSlots, isThursday, type Appointment, type BlockedSlot } from '@/lib/data-store';
 
 const TIMES = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
-type Appointment = {
-  id: string;
-  patient_name: string;
-  email: string;
-  phone: string;
-  appointment_date: string;
-  appointment_time: string;
-  status: string;
-  payment_status: string;
-  room_token: string;
-};
-
-type BlockedSlot = { appointment_date: string; appointment_time: string; reason: string | null };
-
 export default async function ProfessionalPage() {
   const auth = await requireProfessional();
-  if (!auth) redirect('/dashboard');
+  if (!auth) redirect('/login');
 
   const today = new Date();
   const todayIso = format(today, 'yyyy-MM-dd');
   const endIso = format(addDays(today, 30), 'yyyy-MM-dd');
 
-  const [{ data: appointments }, { data: blocked }] = await Promise.all([
-    auth.supabase
-      .from('appointments')
-      .select('id, patient_name, email, phone, appointment_date, appointment_time, status, payment_status, room_token')
-      .gte('appointment_date', todayIso)
-      .lte('appointment_date', endIso)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true }),
-    auth.supabase
-      .from('blocked_slots')
-      .select('appointment_date, appointment_time, reason')
-      .gte('appointment_date', todayIso)
-      .lte('appointment_date', endIso),
+  const [appointments, blocked] = await Promise.all([
+    getAllAppointments(),
+    getBlockedSlots(),
   ]);
 
-  const items = (appointments ?? []) as Appointment[];
+  const items = (appointments ?? []).filter(
+    (a) => a.appointment_date >= todayIso && a.appointment_date <= endIso
+  ) as Appointment[];
+
   const blockedItems = (blocked ?? []) as BlockedSlot[];
   const blockedSet = new Set(blockedItems.map((b) => `${b.appointment_date}|${b.appointment_time.slice(0, 5)}`));
   const confirmed = items.filter((i) => i.status === 'confirmed').length;
   const paid = items.filter((i) => i.payment_status === 'paid').length;
   const pending = items.filter((i) => i.status === 'pending').length;
 
-  const days = Array.from({ length: 10 })
+  const days = Array.from({ length: 12 })
     .map((_, i) => addDays(today, i))
     .filter((d) => d.getDay() !== 0 && d.getDay() !== 6)
-    .slice(0, 7);
+    .slice(0, 8);
 
   return (
     <main className="min-h-screen bg-[#F6F8F8] px-5 py-8 text-[#1F2937] sm:px-6 sm:py-10">
@@ -90,10 +70,23 @@ export default async function ProfessionalPage() {
               <tbody>
                 {days.map((day) => {
                   const date = format(day, 'yyyy-MM-dd');
+                  const isThu = isThursday(date);
                   return (
-                    <tr key={date} className="border-b border-[#EEF2F2] last:border-0">
-                      <td className="py-4 pr-4 font-semibold capitalize">{format(day, "EEE, dd/MM", { locale: ptBR })}</td>
+                    <tr key={date} className={`border-b border-[#EEF2F2] last:border-0 ${isThu ? 'bg-slate-50/60' : ''}`}>
+                      <td className="py-4 pr-4 font-semibold capitalize">
+                        {format(day, "EEE, dd/MM", { locale: ptBR })}
+                        {isThu && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-normal text-amber-800">Quinta-feira (Fixo)</span>}
+                      </td>
                       {TIMES.map((time) => {
+                        if (isThu) {
+                          return (
+                            <td key={time} className="px-2 py-3 text-center">
+                              <span className="rounded-lg bg-slate-100 px-2 py-1.5 text-[11px] font-medium text-slate-400">
+                                Indisponível
+                              </span>
+                            </td>
+                          );
+                        }
                         const blockedSlot = blockedSet.has(`${date}|${time}`);
                         const booked = items.some((a) => a.appointment_date === date && a.appointment_time.slice(0, 5) === time && a.status !== 'cancelled');
                         return (

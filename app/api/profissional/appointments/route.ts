@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceRoleConfig, requireProfessional, serviceHeaders } from '@/lib/professional';
+import { requireProfessional } from '@/lib/professional';
+import { updateAppointment } from '@/lib/data-store';
 
 export async function PATCH(request: NextRequest) {
   const auth = await requireProfessional();
   if (!auth) return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
-
-  const config = getServiceRoleConfig();
-  if (!config) return NextResponse.json({ error: 'Servidor não configurado.' }, { status: 503 });
 
   let body: Record<string, unknown>;
   try {
@@ -21,15 +19,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 });
   }
 
-  const response = await fetch(`${config.url}/rest/v1/appointments?id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { ...serviceHeaders(config.key), Prefer: 'return=representation' },
-    body: JSON.stringify({ status }),
-  });
-
-  if (!response.ok) {
-    return NextResponse.json({ error: 'Não foi possível atualizar a consulta.' }, { status: 502 });
+  const updated = await updateAppointment(id, { status: status as 'confirmed' | 'cancelled' });
+  if (!updated) {
+    return NextResponse.json({ error: 'Consulta não encontrada.' }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, appointment: (await response.json())[0] ?? null });
+  return NextResponse.json({ ok: true, appointment: updated });
 }

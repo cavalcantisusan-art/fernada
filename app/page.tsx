@@ -54,15 +54,15 @@ export default function HomePage() {
             </div>
 
             <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-[#1A202C] sm:text-5xl">
-              Um espaço de acolhimento e escuta para cuidar da sua <span className="text-[#319795]">saúde emocional.</span>
+              Fernanda Rabelo | <span className="text-[#319795]">Psicologia Online</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-[#4A5568]">
-              Agende sua consulta online com Fernanda Rabelo. Sessões individuais, com 50 minutos de duração e acesso por videochamada.
+              Um espaço de acolhimento e escuta para cuidar da sua saúde emocional. Agende sua consulta online com a psicóloga Fernanda Rabelo.
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/agendar" className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[#319795] px-7 font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#2C7A7B]">
-                <CalendarCheck2 className="h-5 w-5" /> Agendar consulta
+                <CalendarCheck2 className="h-5 w-5" /> Agendar consulta com Fernanda
               </Link>
               <Link href="/login" className="inline-flex h-14 items-center justify-center gap-2 rounded-full border border-[#DDE8E7] bg-white px-7 font-semibold text-[#2D3748] hover:bg-[#F7FAFC]">
                 <UserRound className="h-5 w-5 text-[#319795]" /> Área da Paciente
@@ -70,10 +70,10 @@ export default function HomePage() {
             </div>
 
             <div className="mt-8 grid gap-3 border-t border-[#E2E8F0] pt-6 text-sm text-[#718096] sm:grid-cols-2">
-              <div className="flex items-center gap-2"><Video className="h-4 w-4 text-[#319795]" /> Videochamada protegida</div>
-              <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-[#319795]" /> Pagamento pela Stripe</div>
-              <div className="flex items-center gap-2"><LockKeyhole className="h-4 w-4 text-[#319795]" /> Área autenticada</div>
-              <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#319795]" /> rabelo.fernanda.psi@gmail.com</div>
+              <div className="flex items-center gap-2"><Video className="h-4 w-4 text-[#319795]" /> Videochamada dentro da plataforma</div>
+              <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-[#319795]" /> Pagamentos por PIX e Cartão</div>
+              <a href="https://wa.me/5581991930007" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-[#319795]"><HeartHandshake className="h-4 w-4 text-[#319795]" /> WhatsApp: +55 81 99193-0007</a>
+              <a href="mailto:rabelo.fernandac@gmail.com" className="flex items-center gap-2 hover:text-[#319795]"><Mail className="h-4 w-4 text-[#319795]" /> rabelo.fernandac@gmail.com</a>
             </div>
           </div>
 
@@ -88,7 +88,8 @@ export default function HomePage() {
               />
               <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/30 bg-white/90 p-4 shadow-lg backdrop-blur">
                 <p className="font-semibold">Fernanda Rabelo</p>
-                <p className="text-sm text-[#718096]">Psicóloga • CRP 02/15302</p>
+                <p className="text-xs text-[#4A5568]">Fernanda Caldas Rabelo de Oliveira</p>
+                <p className="text-sm font-medium text-[#319795]">CRP 02/15302</p>
               </div>
             </div>
           </div>
@@ -100,21 +101,32 @@ export default function HomePage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=1400&auto=format&fit=crop"
-                alt="Psicóloga em atendimento"
+                alt="Fernanda Rabelo em atendimento"
                 className="aspect-square w-full object-cover"
               />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#319795]">Sobre</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#319795]">Sobre a profissional</p>
               <h2 className="mt-3 text-3xl font-bold text-[#1A202C] sm:text-4xl">Fernanda Rabelo</h2>
+              <p className="mt-1 text-sm font-medium text-[#718096]">Fernanda Caldas Rabelo de Oliveira • CRP 02/15302</p>
+              
               <div className="mt-5 space-y-4 leading-relaxed text-[#4A5568]">
-                <p><strong>Psicóloga formada pela FAFIRE, em 2010.</strong> Atua com experiência em saúde mental, arteterapia e redução de danos.</p>
-                <ul className="space-y-3 pl-5 marker:text-[#319795] list-disc">
+                <p>
+                  <strong>Psicóloga formada pela FAFIRE, em 2010.</strong> Trajetória com sólida atuação e dedicação em saúde mental, arteterapia e redução de danos.
+                </p>
+                <ul className="space-y-2.5 pl-5 marker:text-[#319795] list-disc">
                   <li>Arteterapeuta — ARTE-PE 107/0516.</li>
                   <li>Mestra em Psicologia Social pela UFS.</li>
                   <li>Especialista em Psicologia Junguiana com enfoque na prática clínica pela Faculdade IDE.</li>
                   <li>Facilitadora de SoulCollage.</li>
+                  <li>Trajetória em saúde mental, arteterapia e redução de danos.</li>
                 </ul>
+
+                <div className="mt-6 rounded-2xl bg-[#F8FBFB] border border-[#E2E8F0] p-4 text-sm">
+                  <p className="font-semibold text-[#2D3748]">Contato direto e agendamentos:</p>
+                  <p className="mt-1 text-[#4A5568]">WhatsApp: <a href="https://wa.me/5581991930007" className="text-[#319795] font-semibold underline">+55 81 99193-0007</a></p>
+                  <p className="text-[#4A5568]">E-mail: <a href="mailto:rabelo.fernandac@gmail.com" className="text-[#319795] font-semibold underline">rabelo.fernandac@gmail.com</a></p>
+                </div>
               </div>
             </div>
           </div>

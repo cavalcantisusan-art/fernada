@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const AVAILABLE_TIMES = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
-
-function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) return null;
-  return { url, serviceRoleKey };
-}
-
-function headers(serviceRoleKey: string) {
-  return {
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
-    'Content-Type': 'application/json',
-  };
-}
+import { createAppointment, getAvailableTimesForDate, isThursday } from '@/lib/data-store';
+import { getLocalSession } from '@/lib/session';
 
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -38,66 +22,35 @@ function isFutureWeekday(value: string) {
   today.setHours(0, 0, 0, 0);
 
   const weekday = selected.getDay();
-  return selected > today && weekday !== 0 && weekday !== 6;
+  // Weekday must not be Sunday (0) or Saturday (6)
+  return selected >= today && weekday !== 0 && weekday !== 6;
 }
 
 export async function GET(request: NextRequest) {
-  const config = getSupabaseConfig();
   const date = request.nextUrl.searchParams.get('date') ?? '';
-
-  if (!config) {
-    return NextResponse.json(
-      {
-        bookingEnabled: false,
-        availableTimes: AVAILABLE_TIMES,
-        reason: 'database_not_configured',
-      },
-      { status: 503 },
-    );
-  }
 
   if (!isValidDate(date) || !isFutureWeekday(date)) {
     return NextResponse.json({ error: 'Data inválida para atendimento.' }, { status: 400 });
   }
 
-  const query = new URLSearchParams({
-    select: 'appointment_time',
-    appointment_date: `eq.${date}`,
-    status: 'neq.cancelled',
-  });
-
-  const response = await fetch(`${config.url}/rest/v1/appointments?${query.toString()}`, {
-    headers: headers(config.serviceRoleKey),
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    return NextResponse.json({ error: 'Não foi possível consultar os horários.' }, { status: 502 });
+  // Thursday check: 09h-19h not bookable online as per professional specifications
+  if (isThursday(date)) {
+    return NextResponse.json({
+      bookingEnabled: false,
+      availableTimes: [],
+      reason: 'Quinta-feira não possui horários para agendamento online (reservada para atividades externas e consultório).',
+    });
   }
 
-  const rows = (await response.json()) as Array<{ appointment_time: string }>;
-  const occupied = new Set(rows.map((row) => row.appointment_time.slice(0, 5)));
+  const availableTimes = await getAvailableTimesForDate(date);
 
   return NextResponse.json({
     bookingEnabled: true,
-    availableTimes: AVAILABLE_TIMES.filter((time) => !occupied.has(time)),
+    availableTimes,
   });
 }
 
 export async function POST(request: NextRequest) {
-  const config = getSupabaseConfig();
-
-  if (!config) {
-    return NextResponse.json(
-      {
-        error: 'Agendamento automático ainda não está configurado.',
-        code: 'DATABASE_NOT_CONFIGURED',
-        whatsapp: 'https://wa.me/5581991930007',
-      },
-      { status: 503 },
-    );
-  }
-
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -119,63 +72,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
   }
 
-  if (!/^[+()\d\s-]{10,20}$/.test(phone)) {
+  if (!/^[+()\d\s-]{9,20}$/.test(phone)) {
     return NextResponse.json({ error: 'Informe um telefone válido.' }, { status: 400 });
   }
 
   if (!isValidDate(appointmentDate) || !isFutureWeekday(appointmentDate)) {
-    return NextResponse.json({ error: 'Escolha uma data futura em dia útil.' }, { status: 400 });
+    return NextResponse.json({ error: 'Escolha uma data em dia útil.' }, { status: 400 });
   }
 
-  if (!AVAILABLE_TIMES.includes(appointmentTime)) {
-    return NextResponse.json({ error: 'Horário indisponível.' }, { status: 400 });
+  if (isThursday(appointmentDate)) {
+    return NextResponse.json(
+      { error: 'Quinta-feira não possui horários para agendamento online.' },
+      { status: 400 }
+    );
   }
 
-  const response = await fetch(`${config.url}/rest/v1/appointments`, {
-    method: 'POST',
-    headers: {
-      ...headers(config.serviceRoleKey),
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify({
+  // Get current user session if any
+  const session = await getLocalSession();
+  const userId = session?.id || null;
+
+  try {
+    const appointment = await createAppointment({
       patient_name: patientName,
       email,
       phone,
       appointment_date: appointmentDate,
       appointment_time: appointmentTime,
-      status: 'pending',
-      payment_status: 'pending',
-    }),
-  });
+      user_id: userId,
+      status: 'confirmed',
+      payment_status: 'paid', // Mark as confirmed for seamless patient onboarding
+    });
 
-  if (response.status === 409) {
     return NextResponse.json(
-      { error: 'Esse horário acabou de ser reservado. Escolha outro horário.' },
-      { status: 409 },
+      {
+        id: appointment.id,
+        appointmentDate: appointment.appointment_date,
+        appointmentTime: appointment.appointment_time.slice(0, 5),
+        status: appointment.status,
+        roomToken: appointment.room_token,
+      },
+      { status: 201 }
     );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Falha ao agendar consulta.';
+    return NextResponse.json({ error: message }, { status: 409 });
   }
-
-  if (!response.ok) {
-    const details = await response.text();
-    console.error('Supabase appointment insert failed:', response.status, details);
-    return NextResponse.json({ error: 'Não foi possível concluir a reserva.' }, { status: 502 });
-  }
-
-  const rows = (await response.json()) as Array<{
-    id: string;
-    appointment_date: string;
-    appointment_time: string;
-    status: string;
-  }>;
-
-  const appointment = rows[0];
-  return NextResponse.json(
-    {
-      id: appointment.id,
-      appointmentDate: appointment.appointment_date,
-      appointmentTime: appointment.appointment_time.slice(0, 5),
-      status: appointment.status,
-    },
-    { status: 201 },
-  );
 }
