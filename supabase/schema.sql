@@ -19,9 +19,10 @@ create unique index if not exists appointments_unique_active_slot
 
 alter table public.appointments enable row level security;
 
--- The public site never receives database credentials. All reads and writes happen
--- through Next.js server routes using SUPABASE_SERVICE_ROLE_KEY.
--- Keep this key only in the server/AI Studio Secrets configuration.
+-- The browser must never talk directly to this table. The Next.js API route uses
+-- the server-only SUPABASE_SERVICE_ROLE_KEY. Keep public roles explicitly blocked.
+revoke all on table public.appointments from anon, authenticated;
+grant select, insert, update, delete on table public.appointments to service_role;
 
 create or replace function public.set_updated_at()
 returns trigger
