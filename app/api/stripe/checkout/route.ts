@@ -4,6 +4,7 @@ import { createClient as createServerSupabase } from '@/lib/supabase/server';
 
 const AVAILABLE_TIMES = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 const CONSULTATION_PRICE_CENTS = 18000;
+const CHECKOUT_HOLD_MINUTES = 45;
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
@@ -50,24 +51,12 @@ export async function POST(request: NextRequest) {
   const appointmentTime = String(body.appointmentTime ?? '').trim();
   const consentAccepted = body.consentAccepted === true;
 
-  if (patientName.length < 3 || patientName.length > 120) {
-    return NextResponse.json({ error: 'Informe o nome completo.' }, { status: 400 });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
-  }
-  if (!/^[+()\d\s-]{10,20}$/.test(phone)) {
-    return NextResponse.json({ error: 'Informe um telefone válido.' }, { status: 400 });
-  }
-  if (!validDate(appointmentDate)) {
-    return NextResponse.json({ error: 'Escolha uma data futura em dia útil.' }, { status: 400 });
-  }
-  if (!AVAILABLE_TIMES.includes(appointmentTime)) {
-    return NextResponse.json({ error: 'Horário inválido.' }, { status: 400 });
-  }
-  if (!consentAccepted) {
-    return NextResponse.json({ error: 'É necessário aceitar os termos e o consentimento para teleatendimento.' }, { status: 400 });
-  }
+  if (patientName.length < 3 || patientName.length > 120) return NextResponse.json({ error: 'Informe o nome completo.' }, { status: 400 });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
+  if (!/^[+()\d\s-]{10,20}$/.test(phone)) return NextResponse.json({ error: 'Informe um telefone válido.' }, { status: 400 });
+  if (!validDate(appointmentDate)) return NextResponse.json({ error: 'Escolha uma data futura em dia útil.' }, { status: 400 });
+  if (!AVAILABLE_TIMES.includes(appointmentTime)) return NextResponse.json({ error: 'Horário inválido.' }, { status: 400 });
+  if (!consentAccepted) return NextResponse.json({ error: 'É necessário aceitar os termos e o consentimento para teleatendimento.' }, { status: 400 });
 
   let userId: string | null = null;
   try {
@@ -80,10 +69,7 @@ export async function POST(request: NextRequest) {
 
   const insertResponse = await fetch(`${supabase.url}/rest/v1/appointments`, {
     method: 'POST',
-    headers: {
-      ...supabaseHeaders(supabase.serviceRoleKey),
-      Prefer: 'return=representation',
-    },
+    headers: { ...supabaseHeaders(supabase.serviceRoleKey), Prefer: 'return=representation' },
     body: JSON.stringify({
       patient_name: patientName,
       email,
@@ -97,9 +83,7 @@ export async function POST(request: NextRequest) {
     }),
   });
 
-  if (insertResponse.status === 409) {
-    return NextResponse.json({ error: 'Esse horário já foi reservado. Escolha outro.' }, { status: 409 });
-  }
+  if (insertResponse.status === 409) return NextResponse.json({ error: 'Esse horário já foi reservado. Escolha outro.' }, { status: 409 });
   if (!insertResponse.ok) {
     const details = await insertResponse.text();
     console.error('Appointment insert failed:', insertResponse.status, details);
@@ -115,6 +99,7 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       locale: 'pt-BR',
       customer_email: email,
+      expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_HOLD_MINUTES * 60,
       line_items: [
         {
           price_data: {
@@ -134,32 +119,25 @@ export async function POST(request: NextRequest) {
         appointment_id: appointment.id,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime,
+        patient_name: patientName.slice(0, 120),
         user_id: userId ?? '',
       },
     });
 
     await fetch(`${supabase.url}/rest/v1/appointments?id=eq.${appointment.id}`, {
       method: 'PATCH',
-      headers: {
-        ...supabaseHeaders(supabase.serviceRoleKey),
-        Prefer: 'return=minimal',
-      },
+      headers: { ...supabaseHeaders(supabase.serviceRoleKey), Prefer: 'return=minimal' },
       body: JSON.stringify({ stripe_checkout_session_id: session.id }),
     });
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error('Stripe Checkout creation failed:', error);
-
     await fetch(`${supabase.url}/rest/v1/appointments?id=eq.${appointment.id}`, {
       method: 'PATCH',
-      headers: {
-        ...supabaseHeaders(supabase.serviceRoleKey),
-        Prefer: 'return=minimal',
-      },
+      headers: { ...supabaseHeaders(supabase.serviceRoleKey), Prefer: 'return=minimal' },
       body: JSON.stringify({ status: 'cancelled', payment_status: 'failed' }),
     });
-
     return NextResponse.json({ error: 'Não foi possível iniciar o pagamento.' }, { status: 502 });
   }
 }
