@@ -6,6 +6,8 @@ const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   'sb_publishable_SOOwgewRCvOCvpHR4sKECw_d7leAlav'
 
+const PROTECTED_PREFIXES = ['/dashboard', '/profissional', '/sala']
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request })
 
@@ -26,15 +28,17 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims()
   const claims = data?.claims
+  const pathname = request.nextUrl.pathname
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
-  if (!claims && request.nextUrl.pathname.startsWith('/dashboard')) {
+  if (!claims && isProtected) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
-    loginUrl.searchParams.set('next', request.nextUrl.pathname)
+    loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (claims && request.nextUrl.pathname === '/login') {
+  if (claims && pathname === '/login') {
     const dashboardUrl = request.nextUrl.clone()
     dashboardUrl.pathname = '/dashboard'
     dashboardUrl.search = ''
