@@ -3,6 +3,11 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+function safeNext(formData: FormData) {
+  const value = String(formData.get('next') ?? '')
+  return value.startsWith('/') && !value.startsWith('//') ? value : '/dashboard'
+}
+
 export async function login(formData: FormData) {
   const supabase = await createClient()
   const email = String(formData.get('email') ?? '').trim()
@@ -11,10 +16,11 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent('E-mail ou senha inválidos.')}`)
+    const next = safeNext(formData)
+    redirect(`/login?error=${encodeURIComponent('E-mail ou senha inválidos.')}&next=${encodeURIComponent(next)}`)
   }
 
-  redirect('/dashboard')
+  redirect(safeNext(formData))
 }
 
 export async function signup(formData: FormData) {
@@ -40,7 +46,7 @@ export async function signup(formData: FormData) {
   }
 
   if (data.session) {
-    redirect('/dashboard')
+    redirect(safeNext(formData))
   }
 
   redirect(`/login?success=${encodeURIComponent('Cadastro criado. Confirme seu e-mail e depois entre com sua senha.')}`)
